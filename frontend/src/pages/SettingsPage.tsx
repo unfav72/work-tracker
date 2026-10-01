@@ -1,9 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../lib/api';
 import type { User } from '../lib/api';
-import { User as UserIcon, LogOut, Settings2, Moon, Sun, Globe } from 'lucide-react';
+import { User as UserIcon, LogOut, Settings2, Moon, Globe } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useState, useEffect } from 'react';
 
 export default function SettingsPage() {
   const { logout } = useAuth();
