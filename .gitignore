@@ -1,0 +1,20 @@
+# Environment files (secrets!)
+.env
+.env.*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+backend/venv/
+backend/ven/
+
+# Database
+*.db
+
+# Node
+node_modules/
+
+# IDE
+.vscode/
+.idea/
