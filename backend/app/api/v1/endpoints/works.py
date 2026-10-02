@@ -4,10 +4,53 @@ from typing import Any, List
 import uuid
 
 from app.db.session import get_db
-from app.models.work import Work
+from app.models.work import Work, ReminderJob
 from app.models.user import User
 from app.schemas.work import WorkCreate, WorkUpdate, WorkResponse
 from app.api.deps import get_current_user
+from datetime import datetime, timedelta, timezone
+import logging
+
+logger = logging.getLogger(__name__)
+
+def schedule_reminder_for_work(db: Session, work: Work):
+    try:
+        # Remove any existing pending jobs
+        db.query(ReminderJob).filter(
+            ReminderJob.work_id == work.id, 
+            ReminderJob.status == "queued"
+        ).delete()
+        
+        if not work.reminder_enabled or not work.time_of_day or not work.start_date or work.is_archived:
+            db.commit()
+            return
+            
+        time_parts = work.time_of_day.split(":")
+        if len(time_parts) != 2:
+            return
+            
+        hours, minutes = int(time_parts[0]), int(time_parts[1])
+        dt_naive = datetime(work.start_date.year, work.start_date.month, work.start_date.day, hours, minutes)
+        
+        # We assign UTC timezone to match the scheduler's datetime.now(timezone.utc)
+        dt_utc = dt_naive.replace(tzinfo=timezone.utc)
+        
+        offset = work.reminder_offset_minutes or 0
+        scheduled_for = dt_utc - timedelta(minutes=offset)
+        
+        # Only schedule if in the future
+        if scheduled_for > datetime.now(timezone.utc):
+            job = ReminderJob(
+                work_id=work.id,
+                user_id=work.user_id,
+                scheduled_for=scheduled_for,
+                idempotency_key=f"{work.id}-{scheduled_for.isoformat()}"
+            )
+            db.add(job)
+            db.commit()
+    except Exception as e:
+        logger.error(f"Error scheduling reminder: {e}")
+
 
 router = APIRouter()
 
@@ -24,6 +67,9 @@ def create_work(
     db.add(work)
     db.commit()
     db.refresh(work)
+    
+    schedule_reminder_for_work(db, work)
+    
     return work
 
 @router.get("/", response_model=List[WorkResponse])
@@ -65,6 +111,9 @@ def update_work(
     db.add(work)
     db.commit()
     db.refresh(work)
+    
+    schedule_reminder_for_work(db, work)
+    
     return work
 
 @router.post("/{id}/archive", response_model=WorkResponse)
