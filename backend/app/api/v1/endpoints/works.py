@@ -32,14 +32,15 @@ def schedule_reminder_for_work(db: Session, work: Work):
         hours, minutes = int(time_parts[0]), int(time_parts[1])
         dt_naive = datetime(work.start_date.year, work.start_date.month, work.start_date.day, hours, minutes)
         
-        # We assign UTC timezone to match the scheduler's datetime.now(timezone.utc)
-        dt_utc = dt_naive.replace(tzinfo=timezone.utc)
+        # Convert local time to UTC properly
+        dt_local = dt_naive.astimezone()
+        dt_utc = dt_local.astimezone(timezone.utc)
         
         offset = work.reminder_offset_minutes or 0
         scheduled_for = dt_utc - timedelta(minutes=offset)
         
-        # Only schedule if in the future
-        if scheduled_for > datetime.now(timezone.utc):
+        # Only schedule if in the future or up to 5 minutes in the past
+        if scheduled_for >= (datetime.now(timezone.utc) - timedelta(minutes=5)):
             job = ReminderJob(
                 work_id=work.id,
                 user_id=work.user_id,
