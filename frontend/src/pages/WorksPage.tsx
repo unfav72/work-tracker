@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { worksApi } from '../lib/api';
 import type { Work } from '../lib/api';
 import { format } from 'date-fns';
-import { Sparkles, Trash2, Clock, Plus, X } from 'lucide-react';
+import { Sparkles, Trash2, Clock, Plus, X, Edit2 } from 'lucide-react';
 export default function WorksPage() {
   const queryClient = useQueryClient();
 
@@ -30,6 +30,44 @@ export default function WorksPage() {
       setNewWorkRecurrence('daily');
     },
   });
+
+  const [editingWork, setEditingWork] = useState<Work | null>(null);
+  const [editWorkTitle, setEditWorkTitle] = useState('');
+  const [editWorkPriority, setEditWorkPriority] = useState('medium');
+  const [editWorkTime, setEditWorkTime] = useState('');
+  const [editWorkRecurrence, setEditWorkRecurrence] = useState('daily');
+
+  const updateWorkMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
+      worksApi.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['works'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
+      setEditingWork(null);
+    },
+  });
+
+  const openEditModal = (work: Work) => {
+    setEditingWork(work);
+    setEditWorkTitle(work.title);
+    setEditWorkPriority(work.priority);
+    setEditWorkTime(work.time_of_day || '');
+    setEditWorkRecurrence(work.recurrence_type || 'daily');
+  };
+
+  const handleUpdateWork = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingWork || !editWorkTitle.trim()) return;
+    updateWorkMutation.mutate({
+      id: editingWork.id,
+      data: {
+        title: editWorkTitle.trim(),
+        priority: editWorkPriority,
+        time_of_day: editWorkTime || undefined,
+        recurrence_type: editWorkRecurrence,
+      },
+    });
+  };
 
   const handleAddWork = (e: React.FormEvent) => {
     e.preventDefault();
@@ -189,6 +227,13 @@ export default function WorksPage() {
               <div className="work-actions">
                 <button
                   className="action-btn"
+                  onClick={() => openEditModal(work)}
+                  title="Edit Work"
+                >
+                  <Edit2 size={18} />
+                </button>
+                <button
+                  className="action-btn"
                   onClick={() => archiveMutation.mutate(work.id)}
                   title="Archive Work"
                   disabled={archiveMutation.isPending}
@@ -200,6 +245,76 @@ export default function WorksPage() {
           ))
         )}
       </div>
+
+      {editingWork && (
+        <div className="modal-overlay" onClick={() => setEditingWork(null)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Edit Work</h3>
+              <button className="modal-close" onClick={() => setEditingWork(null)}>
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleUpdateWork} className="modal-form">
+              <div className="form-field">
+                <label>Title</label>
+                <input
+                  type="text"
+                  value={editWorkTitle}
+                  onChange={(e) => setEditWorkTitle(e.target.value)}
+                  placeholder="What needs to be done?"
+                  autoFocus
+                />
+              </div>
+              
+              <div className="form-field">
+                <label>Recurrence</label>
+                <div className="priority-select" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr' }}>
+                  {['one-time', 'daily', 'weekly', 'monthly'].map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      className={`priority-option ${editWorkRecurrence === r ? 'active priority-medium' : ''}`}
+                      onClick={() => setEditWorkRecurrence(r)}
+                    >
+                      {r === 'one-time' ? 'Once' : r.charAt(0).toUpperCase() + r.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-field">
+                  <label>Priority</label>
+                  <div className="priority-select">
+                    {['low', 'medium', 'high'].map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        className={`priority-option ${getPriorityColor(p)} ${editWorkPriority === p ? 'active' : ''}`}
+                        onClick={() => setEditWorkPriority(p)}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="form-field">
+                  <label>Time (Optional)</label>
+                  <input
+                    type="time"
+                    value={editWorkTime}
+                    onChange={(e) => setEditWorkTime(e.target.value)}
+                  />
+                </div>
+              </div>
+              <button type="submit" className="submit-btn" disabled={updateWorkMutation.isPending}>
+                {updateWorkMutation.isPending ? 'Saving...' : 'Save Changes'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
