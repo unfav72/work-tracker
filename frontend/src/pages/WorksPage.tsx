@@ -65,6 +65,7 @@ export default function WorksPage() {
         priority: editWorkPriority,
         time_of_day: editWorkTime || undefined,
         recurrence_type: editWorkRecurrence,
+        start_date: format(new Date(), 'yyyy-MM-dd'),
       },
     });
   };
