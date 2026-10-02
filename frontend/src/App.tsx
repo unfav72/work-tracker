@@ -3,6 +3,7 @@ import { Home, Calendar, Settings, ListTodo, LogOut, Sparkles } from 'lucide-rea
 import Dashboard from './pages/Dashboard';
 import LoginPage from './pages/LoginPage';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { PWAInstallBanner } from './components/PWAInstallBanner';
 
 // Placeholder Pages
 import WorksPage from './pages/WorksPage';
@@ -75,6 +76,9 @@ function AppLayout() {
         <MobileNavItem to="/calendar" icon={Calendar} label="Calendar" isActive={path === '/calendar'} />
         <MobileNavItem to="/settings" icon={Settings} label="Settings" isActive={path === '/settings'} />
       </nav>
+
+      {/* PWA Install Banner */}
+      <PWAInstallBanner />
     </div>
   );
 }

@@ -141,6 +141,12 @@ export const statsApi = {
   summary: () => apiFetch('/stats/summary'),
 };
 
+// Reminders API
+export const remindersApi = {
+  sendTest: () => apiFetch('/reminders/test', { method: 'POST' }),
+  getConfig: () => apiFetch('/reminders/config'),
+};
+
 // Types
 export interface Work {
   id: string;
@@ -182,6 +188,14 @@ export interface User {
   reminder_email?: string;
   is_verified: boolean;
   created_at: string;
+}
+
+export interface EmailConfig {
+  provider: string;
+  from: string;
+  reply_to: string;
+  recipient: string;
+  is_configured: boolean;
 }
 
 export interface StatsSummary {
