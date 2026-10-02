@@ -15,6 +15,12 @@ logger = logging.getLogger(__name__)
 
 def schedule_reminder_for_work(db: Session, work: Work):
     try:
+        user = db.query(User).filter(User.id == work.user_id).first()
+        if not user:
+            return
+            
+        tz_name = user.timezone or "UTC"
+        
         # Remove any existing pending jobs
         db.query(ReminderJob).filter(
             ReminderJob.work_id == work.id, 
@@ -30,11 +36,17 @@ def schedule_reminder_for_work(db: Session, work: Work):
             return
             
         hours, minutes = int(time_parts[0]), int(time_parts[1])
-        dt_naive = datetime(work.start_date.year, work.start_date.month, work.start_date.day, hours, minutes)
         
-        # Convert local time to UTC properly
-        dt_local = dt_naive.astimezone()
-        dt_utc = dt_local.astimezone(timezone.utc)
+        from zoneinfo import ZoneInfo
+        try:
+            tz = ZoneInfo(tz_name)
+        except Exception:
+            tz = timezone.utc
+            
+        dt_aware = datetime(work.start_date.year, work.start_date.month, work.start_date.day, hours, minutes, tzinfo=tz)
+        
+        # Convert user's local time to UTC properly
+        dt_utc = dt_aware.astimezone(timezone.utc)
         
         offset = work.reminder_offset_minutes or 0
         scheduled_for = dt_utc - timedelta(minutes=offset)
